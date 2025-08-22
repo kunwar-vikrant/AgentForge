@@ -1,6 +1,6 @@
 import sys
 import json
-from llm_providers import get_llm_response  # Import from separate module
+from llm_providers import get_llm_response  
 
 def main():
     if len(sys.argv) < 3:
@@ -11,9 +11,18 @@ def main():
     use_case = ' '.join(sys.argv[2:])
     
     # Step 1: Planning Agent
-    planning_prompt = f"Outline a structure for an AI agent that: {use_case}. Include tools, logic, and dependencies."
-    plan = get_llm_response(provider, planning_prompt)
-    print("Agent Plan:\n", plan)
+    planning_prompt = (
+        f"You are an expert AI architect.\n"
+        f"Task: Outline a robust structure for an AI agent that will: {use_case}.\n"
+        "Be specific about required tools, logic flow, and dependencies.\n"
+        "Format your response as a clear, step-by-step plan."
+    )
+    try:
+        plan = get_llm_response(provider, planning_prompt)
+    except Exception as e:
+        print(f"Error during planning step: {e}")
+        sys.exit(1)
+    print("\n=== Agent Plan ===\n", plan.strip() if plan else "No plan generated.")
     
     # Step 2: Code Generation Agent
     code_gen_prompt = f"Generate Python code for the agent based on this plan: {plan}. Use agentic patterns like tool calling if possible."
