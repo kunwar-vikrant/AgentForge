@@ -2,6 +2,7 @@ import os
 import requests
 import json
 import time
+
 import logging
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
@@ -198,3 +199,5 @@ def get_llm_response(provider: str, prompt: str, max_retries: int = 2) -> str:
     
     # All retries exhausted
     raise RuntimeError(f"Failed to get response from {provider} after {max_retries + 1} attempts. Last error: {last_error}")
+
+
