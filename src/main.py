@@ -11,18 +11,43 @@ def main():
     use_case = ' '.join(sys.argv[2:])
     
     # Step 1: Planning Agent
-    planning_prompt = (
-        f"You are an expert AI architect.\n"
-        f"Task: Outline a robust structure for an AI agent that will: {use_case}.\n"
-        "Be specific about required tools, logic flow, and dependencies.\n"
-        "Format your response as a clear, step-by-step plan."
-    )
-    try:
-        plan = get_llm_response(provider, planning_prompt)
-    except Exception as e:
-        print(f"Error during planning step: {e}")
+    if not use_case.strip():
+        print("Error: Use case description is empty.")
         sys.exit(1)
-    print("\n=== Agent Plan ===\n", plan.strip() if plan else "No plan generated.")
+
+    planning_prompt = (
+        """
+        You are an expert AI architect.
+        Your task is to design a robust structure for an AI agent with the following goal:
+        """
+        f"{use_case.strip()}\n"
+        """
+        Requirements:
+        - Specify all required tools, libraries, and dependencies (with versions if relevant).
+        - Outline the logic flow and agentic patterns (e.g., tool calling, memory, planning).
+        - Highlight any edge cases or failure handling.
+        - Format your response as a clear, step-by-step plan with bullet points or numbered steps.
+        """
+    )
+
+    max_retries = 2
+    for attempt in range(1, max_retries + 1):
+        try:
+            plan = get_llm_response(provider, planning_prompt)
+            if plan and len(plan.strip()) > 10:
+                break
+            else:
+                print(f"Warning: Received empty or too short plan (attempt {attempt}). Retrying...")
+        except Exception as e:
+            print(f"Error during planning step (attempt {attempt}): {e}")
+            if attempt == max_retries:
+                sys.exit(1)
+    else:
+        print("Failed to generate a valid agent plan after retries.")
+        sys.exit(1)
+
+    print("\n=== Agent Plan ===\n")
+    print(plan.strip())
     
     # Step 2: Code Generation Agent
     code_gen_prompt = f"Generate Python code for the agent based on this plan: {plan}. Use agentic patterns like tool calling if possible."
