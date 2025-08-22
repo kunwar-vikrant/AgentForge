@@ -1,0 +1,17 @@
+{
+  "max_retries": 3,
+  "min_plan_length": 50,
+  "min_code_length": 100,
+  "output_base_dir": "generated_agents",
+  "create_timestamped_dirs": true,
+  "save_logs": true,
+  "log_level": "INFO",
+  "default_timeout": 120,
+  "default_temperature": 0.7,
+  "default_max_tokens": 4000,
+  "openai_model": "gpt-4o-mini",
+  "grok_model": "grok-beta",
+  "ollama_model": "llama3",
+  "ollama_host": "localhost",
+  "ollama_port": 11434
+}

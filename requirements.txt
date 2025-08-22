@@ -1,0 +1,13 @@
+# Core dependencies for AgentForge
+requests>=2.31.0
+pathlib>=1.0.1
+
+# Optional dependencies for development
+pytest>=7.0.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.0.0
+
+# Documentation
+mkdocs>=1.5.0
+mkdocs-material>=9.0.0
