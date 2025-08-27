@@ -3,9 +3,10 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agentforge"
+name = "agentforgeX"
 version = "0.1.0"
 description = "AgentForge: LLM-driven agent and multi-agent system generator"
+keywords = ["agents","llm","multi-agent","automation"]
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
