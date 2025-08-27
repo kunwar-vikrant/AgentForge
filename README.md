@@ -23,7 +23,33 @@ Create single agents or robust multi-agent systems from plain English. One comma
 - **Input Validation**: Thorough validation of inputs and API responses
 - **Type Safety**: Full type hints and validation
 
-## 🚀 Quick Start
+## 🧪 One-Line Install (PyPI)
+
+If you just want to use it (no cloning needed):
+
+```bash
+pip install agentforgeX
+```
+
+Then run (these console scripts are installed automatically):
+
+```bash
+agentforge plan --provider openai --use-case "Design a FAQ bot"
+agentforge generate --provider ollama --use-case "Summarize a CSV of sales"
+agentforge multi --task "Explain caching layers" --provider echo
+```
+
+No API keys yet? Use `--provider echo` (deterministic mock) or set one of:
+`OPENAI_API_KEY`, `XAI_API_KEY`, `GROQ_API_KEY`, `ANTHROPIC_API_KEY`.
+
+To upgrade later:
+```bash
+pip install -U agentforgeX
+```
+
+---
+
+## 🚀 Quick Start (Source / Contributors)
 
 ```bash
 git clone <repository-url>
