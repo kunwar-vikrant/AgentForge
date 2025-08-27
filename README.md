@@ -7,6 +7,7 @@ Create single agents or robust multi-agent systems from plain English. One comma
 ### 🤖 Multi-LLM Support
 - **OpenAI GPT Models** (via API key)
 - **Grok** (via xAI API)
+- **Groq** 
 - **Ollama** (local models like Llama3)
 
 ### 🏗️ Agentic Pipeline
