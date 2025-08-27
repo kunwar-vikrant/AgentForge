@@ -22,20 +22,34 @@ class ProviderConfig:
 # Provider configurations
 PROVIDER_CONFIGS = {
     'openai': ProviderConfig(
-        url="https://api.openai.com/v1/chat/completions",
-        model="gpt-4o-mini",
+        url=os.getenv('OPENAI_BASE_URL', "https://api.openai.com/v1/chat/completions"),
+        model=os.getenv('OPENAI_MODEL', "gpt-4o-mini"),
         api_key_env="OPENAI_API_KEY",
         max_tokens=4000
     ),
     'grok': ProviderConfig(
-        url="https://api.x.ai/v1/chat/completions",
-        model="grok-beta",
+        url=os.getenv('GROK_BASE_URL', "https://api.x.ai/v1/chat/completions"),
+        model=os.getenv('GROK_MODEL', "grok-beta"),
         api_key_env="XAI_API_KEY",
         max_tokens=4000
     ),
+    'groq': ProviderConfig(
+        # Groq exposes an OpenAI-compatible endpoint
+        url=os.getenv('GROQ_BASE_URL', "https://api.groq.com/openai/v1/chat/completions"),
+        model=os.getenv('GROQ_MODEL', "mixtral-8x7b-32768"),
+        api_key_env="GROQ_API_KEY",
+        max_tokens=4000
+    ),
+    'anthropic': ProviderConfig(
+        # Anthropic uses a different Messages API (not OpenAI chat/completions)
+        url=os.getenv('ANTHROPIC_BASE_URL', "https://api.anthropic.com/v1/messages"),
+        model=os.getenv('ANTHROPIC_MODEL', "claude-3-5-sonnet-20240620"),
+        api_key_env="ANTHROPIC_API_KEY",
+        max_tokens=4000
+    ),
     'ollama': ProviderConfig(
-        url="http://localhost:11434/api/chat",
-        model="llama3",
+        url=os.getenv('OLLAMA_BASE_URL', "http://localhost:11434/api/chat"),
+        model=os.getenv('OLLAMA_MODEL', "llama3"),
         max_tokens=4000
     )
 }
@@ -59,47 +73,69 @@ def get_api_key(provider_config: ProviderConfig) -> Optional[str]:
     return api_key
 
 def build_request_data(provider: str, prompt: str, config: ProviderConfig) -> Dict[str, Any]:
-    """Build request data for the specific provider."""
+    """Build request body for provider.
+
+    For anthropic we must use its Messages API schema; others default to OpenAI style.
+    """
+    if provider == 'anthropic':
+        body: Dict[str, Any] = {
+            "model": config.model,
+            "max_tokens": min(config.max_tokens or 1000, 4096),
+            "temperature": config.temperature,
+            "messages": [
+                {"role": "user", "content": prompt}
+            ]
+        }
+        return body
+
     base_data = {
         "model": config.model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": config.temperature
     }
-    
     if config.max_tokens:
         base_data["max_tokens"] = config.max_tokens
-    
-    # Provider-specific adjustments
     if provider == 'ollama':
-        # Ollama might have different parameter names
         base_data["stream"] = False
-    
     return base_data
 
 def parse_response(provider: str, response_data: Dict[str, Any]) -> str:
     """Parse response based on provider format."""
     try:
-        # Standard OpenAI-compatible format
+        # Anthropic Messages API: content is list of blocks; take first text block
+        if provider == 'anthropic':
+            blocks = response_data.get('content') or []
+            for blk in blocks:
+                if isinstance(blk, dict) and blk.get('type') == 'text':
+                    txt = blk.get('text')
+                    if txt:
+                        return txt.strip()
+            # Fallback: use output_text if present (older SDK shape)
+            if 'output_text' in response_data:
+                return str(response_data['output_text']).strip()
+
+        # Standard OpenAI-compatible format (OpenAI, Grok, Groq)
         if 'choices' in response_data and response_data['choices']:
-            content = response_data['choices'][0]['message']['content']
-            if content:
-                return content.strip()
-        
+            choice0 = response_data['choices'][0]
+            # Some OpenAI-like responses might embed content differently
+            if 'message' in choice0 and isinstance(choice0['message'], dict):
+                content = choice0['message'].get('content')
+                if content:
+                    return content.strip()
+            if 'text' in choice0 and choice0['text']:
+                return choice0['text'].strip()
+
         # Ollama alternative format
         if provider == 'ollama':
             if 'message' in response_data and isinstance(response_data['message'], dict):
                 content = response_data['message'].get('content', '')
                 if content:
                     return content.strip()
-            
-            # Sometimes Ollama returns content directly
             if 'content' in response_data:
-                return response_data['content'].strip()
-        
-        # Fallback: convert entire response to string
+                return str(response_data['content']).strip()
+
         logger.warning(f"Unexpected response format from {provider}, using fallback parsing")
         return str(response_data)
-        
     except (KeyError, IndexError, TypeError) as e:
         raise RuntimeError(f"Failed to parse response from {provider}: {e}")
 
@@ -126,12 +162,23 @@ def get_llm_response(provider: str, prompt: str, max_retries: int = 2) -> str:
         raise ValueError("Prompt cannot be empty")
     
     logger.info(f"Querying {provider} with prompt length: {len(prompt)}")
+
+    # Optional base URL override (e.g., LM Studio / vLLM / OpenAI compatible local server)
+    base_url_override = None
+    if provider == 'openai':
+        base_url_override = os.getenv('OPENAI_BASE_URL') or os.getenv('AGENTFORGE_OPENAI_BASE_URL')
+        if base_url_override:
+            logger.debug(f"Using overridden OpenAI base URL: {base_url_override}")
     
-    # Build headers
+    # Build headers (Anthropic differs)
     headers = {"Content-Type": "application/json"}
     api_key = get_api_key(config)
     if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
+        if provider == 'anthropic':
+            headers["x-api-key"] = api_key
+            headers["anthropic-version"] = os.getenv('ANTHROPIC_VERSION', '2023-06-01')
+        else:
+            headers["Authorization"] = f"Bearer {api_key}"
     
     # Build request data
     data = build_request_data(provider, prompt, config)
@@ -144,8 +191,9 @@ def get_llm_response(provider: str, prompt: str, max_retries: int = 2) -> str:
                 logger.info(f"Retrying {provider} request (attempt {attempt + 1}) after {wait_time}s...")
                 time.sleep(wait_time)
             
+            target_url = base_url_override or config.url
             response = requests.post(
-                config.url, 
+                target_url, 
                 headers=headers, 
                 json=data, 
                 timeout=config.default_timeout
