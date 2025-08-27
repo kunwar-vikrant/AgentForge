@@ -1,6 +1,6 @@
 # AgentForge
 
-A robust Python-based CLI tool that creates a complete agentic workflow for automatically generating AI agents. AgentForge takes a user's description and transforms it into a fully functional AI agent with comprehensive planning, code generation, and testing.
+Create single agents or robust multi-agent systems from plain English. One command plans, generates, quality‑checks, and packages a runnable agent; another runs a supervisor + workers loop.
 
 ## Features
 
@@ -22,20 +22,25 @@ A robust Python-based CLI tool that creates a complete agentic workflow for auto
 - **Input Validation**: Thorough validation of inputs and API responses
 - **Type Safety**: Full type hints and validation
 
-## Installation
+## 🚀 Quick Start
 
-1. Clone the repository:
 ```bash
 git clone <repository-url>
 cd AgentForge
+python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -e '.[dev]'
+
+# Single agent (plan + code + tests + packaging)
+agentforge generate --provider openai --use-case "Summarize daily sales CSVs and flag anomalies"
+
+# Multi-agent (offline deterministic)
+agentforge multi --task "Explain caching layers" --provider echo --verbose
+
+# Planning only
+agentforge plan --provider ollama --use-case "Design an FAQ chatbot"
 ```
 
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-3. Set up environment variables for your chosen LLM provider:
+Set environment variables for real providers:
 
 ### For OpenAI:
 ```bash
@@ -53,28 +58,43 @@ Make sure Ollama is running locally:
 ollama serve
 ```
 
-## Usage
+## 🧩 Single-Agent Generation (Detailed)
 
-### Basic Usage
+The `generate` subcommand performs:
+1. Planning (LLM architecture plan with retries)
+2. Code generation + heuristic quality evaluation & refinement
+3. Test suggestions
+4. Deterministic fallback template if quality fails
+5. Packaging (requirements, run scripts, Dockerfile, README)
+
+Artifacts land in `generated_agents/<timestamp>/`.
+
+Legacy direct call (still works):
 ```bash
-python src/main.py <provider> "<use_case_description>"
+python src/main.py <provider> "<use case>"
 ```
 
-### Examples
-
-**Create a news summarization agent:**
+### Run as an API Service
+Start the FastAPI server (after installing new dependencies):
 ```bash
-python src/main.py openai "Create an agent that summarizes daily news via RSS feeds and emails the summary"
+uvicorn src.api.app:app --reload
+```
+Then call endpoints:
+```bash
+curl -X POST http://127.0.0.1:8000/plan -H 'Content-Type: application/json' \
+  -d '{"provider":"openai","use_case":"Build an agent that summarizes emails"}'
+```
+Full pipeline:
+```bash
+curl -X POST http://127.0.0.1:8000/pipeline -H 'Content-Type: application/json' \
+  -d '{"provider":"ollama","use_case":"Create an agent that tags support tickets"}'
 ```
 
-**Create a data analysis agent:**
+### More Examples
 ```bash
-python src/main.py grok "Build an agent that analyzes CSV data and generates insights with visualizations"
-```
-
-**Create a chatbot agent:**
-```bash
-python src/main.py ollama "Design a customer support chatbot that can handle common questions and escalate complex issues"
+agentforge generate --provider grok --use-case "Analyze CSV data and output anomaly report"
+agentforge generate --provider ollama --use-case "Customer support chatbot that escalates complex issues"
+agentforge generate --provider openai --use-case "News summarizer that emails an AM briefing"
 ```
 
 ## Configuration
@@ -168,12 +188,28 @@ Control output behavior:
 }
 ```
 
-### Development Mode
-For development, use debug logging:
+## 🤝 Multi-Agent Orchestration
+
+Run a supervisor + worker loop:
 ```bash
-export AGENTFORGE_LOG_LEVEL=DEBUG
-python src/main.py ollama "test agent"
+agentforge multi --task "Draft phased migration plan" --provider openai
+agentforge multi --task "Summarize caching strategy" --provider echo --verbose
 ```
+Supervisor must output `NEXT:<agent>` or `FINISH:<answer>`.
+Workers output `RESPOND:<answer>` or `TOOL:<name>:<arg>`.
+
+Add an extra worker (snippet):
+```python
+from agents.base import BaseAgent
+from agents.adapters import EchoLLM
+from agents.orchestrator import Orchestrator
+llm = EchoLLM()
+sup = BaseAgent("supervisor", llm, "Supervisor: decide.")
+worker = BaseAgent("worker", llm, "Worker: solve tasks.")
+researcher = BaseAgent("researcher", llm, "Research facts.")
+orch = Orchestrator({"worker": worker, "researcher": researcher}, sup, max_turns=8)
+```
+Offline deterministic path (no keys): `--provider echo`.
 
 ## Dependencies
 
@@ -193,7 +229,7 @@ python src/main.py ollama "test agent"
 
 MIT License - see LICENSE file for details.
 
-## Troubleshooting
+## 🛠️ Troubleshooting
 
 ### Common Issues
 
@@ -224,6 +260,9 @@ python src/main.py <provider> "<use_case>"
 ```
 
 Check the log file for detailed error information:
+## 📚 Extended Documentation
+
+See `docs/USAGE.md` for advanced multi-agent usage, tool authoring, roadmap, and a troubleshooting matrix.
 ```bash
 tail -f agent_forge.log
 ```

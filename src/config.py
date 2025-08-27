@@ -29,9 +29,16 @@ class AgentForgeConfig:
     # Provider-specific settings
     openai_model: str = "gpt-4o-mini"
     grok_model: str = "grok-beta"
+    groq_model: str = "mixtral-8x7b-32768"
+    anthropic_model: str = "claude-3-5-sonnet-20240620"
     ollama_model: str = "llama3"
     ollama_host: str = "localhost"
     ollama_port: int = 11434
+
+    # Multi-agent settings
+    max_agent_turns: int = 15
+    multi_agent_default_supervisor: str = "supervisor"
+    enable_multi_agent: bool = True
     
     @classmethod
     def load_from_file(cls, config_path: Optional[Path] = None) -> 'AgentForgeConfig':
@@ -76,9 +83,14 @@ class AgentForgeConfig:
             'AGENTFORGE_MAX_TOKENS': ('default_max_tokens', int),
             'OPENAI_MODEL': ('openai_model', str),
             'GROK_MODEL': ('grok_model', str),
+            'GROQ_MODEL': ('groq_model', str),
+            'ANTHROPIC_MODEL': ('anthropic_model', str),
             'OLLAMA_MODEL': ('ollama_model', str),
             'OLLAMA_HOST': ('ollama_host', str),
             'OLLAMA_PORT': ('ollama_port', int),
+            'AGENTFORGE_MAX_AGENT_TURNS': ('max_agent_turns', int),
+            'AGENTFORGE_MULTI_AGENT_SUPERVISOR': ('multi_agent_default_supervisor', str),
+            'AGENTFORGE_ENABLE_MULTI_AGENT': ('enable_multi_agent', lambda v: v.lower() in {'1','true','yes','on'}),
         }
         
         for env_var, (attr_name, type_func) in env_mappings.items():

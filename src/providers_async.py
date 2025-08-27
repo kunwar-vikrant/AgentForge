@@ -82,10 +82,33 @@ class ProviderClient:
                     backoff = min(backoff * 2, 8)
 
 
+def _int(env_name: str, default: int) -> int:
+    try:
+        return int(os.getenv(env_name, '').strip() or default)
+    except ValueError:
+        logger.warning(f"Invalid int for {env_name}; using default {default}")
+        return default
+
+
+# Environment overrides (allows LM Studio / vLLM / custom hosts)
+openai_base_url = os.getenv('OPENAI_BASE_URL') or os.getenv('AGENTFORGE_OPENAI_BASE_URL') or 'https://api.openai.com/v1/chat/completions'
+grok_base_url = os.getenv('GROK_BASE_URL') or 'https://api.x.ai/v1/chat/completions'
+ollama_host = os.getenv('OLLAMA_HOST', 'localhost')
+ollama_port = _int('OLLAMA_PORT', 11434)
+ollama_base_url = os.getenv('OLLAMA_BASE_URL') or f'http://{ollama_host}:{ollama_port}/api/chat'
+
+openai_model = os.getenv('OPENAI_MODEL', 'gpt-4o-mini')
+grok_model = os.getenv('GROK_MODEL', 'grok-beta')
+ollama_model = os.getenv('OLLAMA_MODEL', 'llama3')
+
+openai_conc = _int('AGENTFORGE_CONCURRENCY_OPENAI', 8)
+grok_conc = _int('AGENTFORGE_CONCURRENCY_GROK', 6)
+ollama_conc = _int('AGENTFORGE_CONCURRENCY_OLLAMA', 4)
+
 PROVIDERS: Dict[str, AsyncProviderConfig] = {
-    'openai': AsyncProviderConfig(name='openai', url='https://api.openai.com/v1/chat/completions', model='gpt-4o-mini', api_key_env='OPENAI_API_KEY'),
-    'grok': AsyncProviderConfig(name='grok', url='https://api.x.ai/v1/chat/completions', model='grok-beta', api_key_env='XAI_API_KEY'),
-    'ollama': AsyncProviderConfig(name='ollama', url='http://localhost:11434/api/chat', model='llama3'),
+    'openai': AsyncProviderConfig(name='openai', url=openai_base_url, model=openai_model, api_key_env='OPENAI_API_KEY', concurrency=openai_conc),
+    'grok': AsyncProviderConfig(name='grok', url=grok_base_url, model=grok_model, api_key_env='XAI_API_KEY', concurrency=grok_conc),
+    'ollama': AsyncProviderConfig(name='ollama', url=ollama_base_url, model=ollama_model, concurrency=ollama_conc),
 }
 
 _client_cache: Dict[str, ProviderClient] = {}
