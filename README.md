@@ -35,8 +35,9 @@ Then run (these console scripts are installed automatically):
 
 ```bash
 agentforge plan --provider openai --use-case "Design a FAQ bot"
+agentforge plan --provider groq --use-case "Design a FAQ bot"
 agentforge generate --provider ollama --use-case "Summarize a CSV of sales"
-agentforge multi --task "Explain caching layers" --provider echo
+agentforge multi --task "Explain caching layers" --provider groq
 ```
 
 No API keys yet? Use `--provider echo` (deterministic mock) or set one of:
